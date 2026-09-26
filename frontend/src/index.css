@@ -1,0 +1,30 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  background-color: #f8f9fa; /* Cinza super claro, padrão de dashboards */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Arredonda os cantos do mapa para um visual moderno */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem; 
+  z-index: 1;
+}
+
+.evidence-preview,
+.evidence-thumbnail {
+  display: block;
+  width: 100%;
+  object-fit: cover;
+  border-radius: 0.75rem;
+}
+
+.evidence-preview {
+  max-height: 220px;
+}
+
+.evidence-thumbnail {
+  max-height: 160px;
+}

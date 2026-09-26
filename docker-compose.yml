@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: asnuvens_db
+    environment:
+      POSTGRES_DB: cartografia_db
+      POSTGRES_USER: nuvem_user
+      POSTGRES_PASSWORD: nuvem_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nuvem_user -d cartografia_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend # Ajuste para o nome da pasta do backend se for diferente
+    container_name: asnuvens_api
+    environment:
+      DATABASE_URL: postgresql://nuvem_user:nuvem_password@db:5432/cartografia_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend # Ajuste para o nome da pasta do frontend se for diferente
+    container_name: asnuvens_web
+    environment:
+      - CI=true # Desativa modo interativo que trava o Vite
+    stdin_open: true # Mantém o buffer de entrada aberto (elimina o erro -35 EAGAIN)
+    tty: true # Aloca um pseudo-terminal para o processo do Node
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Impede que o node_modules local sobrescreva o do container
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads_data:
