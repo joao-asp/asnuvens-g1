@@ -1,30 +1,27 @@
 body, html {
   margin: 0;
   padding: 0;
-  background-color: #f8f9fa; /* Cinza super claro, padrão de dashboards */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f8fafc;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color: #1e293b;
 }
 
-/* Arredonda os cantos do mapa para um visual moderno */
+/* Garante que o mapa preencha a tela corretamente sem quebrar no mobile */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  border-radius: 1rem; 
+  border-radius: 1rem;
   z-index: 1;
 }
 
-.evidence-preview,
-.evidence-thumbnail {
-  display: block;
-  width: 100%;
-  object-fit: cover;
+/* Customização leve do Popup do Leaflet para ficar moderno */
+.leaflet-popup-content-wrapper {
   border-radius: 0.75rem;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 
-.evidence-preview {
-  max-height: 220px;
-}
-
-.evidence-thumbnail {
-  max-height: 160px;
+.leaflet-popup-content {
+  margin: 0;
 }

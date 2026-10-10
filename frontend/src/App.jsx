@@ -1,28 +1,25 @@
 import React, { useState } from 'react';
-import { Navbar, Container, Row, Col, Card, Button, Modal, Form } from 'react-bootstrap';
+import { Navbar, Container, Row, Col, Card, Button, Modal, Form, Badge } from 'react-bootstrap';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'leaflet/dist/leaflet.css';
 import './index.css';
 
-const API_URL = 'http://localhost:8000';
-
-// Função para gerar um Pino de Mapa real (SVG) usando as cores do projeto
+// Ícone SVG personalizado e refinado para os pins do mapa
 const createCustomPin = (color) => {
   return L.divIcon({
     className: 'custom-pin',
-    html: `<svg width="28" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 36 12 36C12 36 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${color}" stroke="#09090b" stroke-width="1.5"/>
-            <circle cx="12" cy="12" r="5" fill="#ffffff"/>
+    html: `<svg width="30" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 36 12 36C12 36 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+            <circle cx="12" cy="12" r="4.5" fill="#ffffff"/>
            </svg>`,
-    iconSize: [28, 42],
-    iconAnchor: [14, 42],
+    iconSize: [30, 42],
+    iconAnchor: [15, 42],
     popupAnchor: [0, -42]
   });
 };
 
-// Captura o clique no mapa
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
     click(e) {
@@ -34,131 +31,151 @@ function MapClickHandler({ onMapClick }) {
 
 function App() {
   const [pontos, setPontos] = useState([
-    { id: 1, lat: -23.003, lng: -47.102, categoria: "Asfalto", desc: "Via recém-asfaltada irradiando calor extremo.", data: "15/08/2026", cor: "#495057" },
-    { id: 2, lat: -23.007, lng: -47.108, categoria: "Lixo", desc: "Descarte irregular bloqueando a calçada.", data: "14/08/2026", cor: "#ffc107" },
-    { id: 3, lat: -23.006, lng: -47.100, categoria: "Esgoto a céu aberto", desc: "Vazamento contínuo próximo à área residencial.", data: "15/08/2026", cor: "#c59dff" }
+    { 
+      id: 1, 
+      lat: -23.003, 
+      lng: -47.102, 
+      categoria: "Asfalto", 
+      desc: "Via recém-asfaltada irradiando calor extremo e sem arborização.", 
+      data: "15/08/2026", 
+      status: "Pendente",
+      fotos: ["https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=400&q=80"],
+      cor: "#64748b" 
+    },
+    { 
+      id: 2, 
+      lat: -23.007, 
+      lng: -47.108, 
+      categoria: "Lixo", 
+      desc: "Descarte irregular acumulado na esquina bloqueando a circulação.", 
+      data: "14/08/2026", 
+      status: "Notificado",
+      fotos: ["https://images.unsplash.com/photo-1605600659873-d808a1d14b2c?auto=format&fit=crop&w=400&q=80"],
+      cor: "#f59e0b" 
+    },
+    { 
+      id: 3, 
+      lat: -23.006, 
+      lng: -47.100, 
+      categoria: "Esgoto a céu aberto", 
+      desc: "Vazamento contínuo gerando odor forte próximo às residências.", 
+      data: "15/08/2026", 
+      status: "Pendente",
+      fotos: ["https://images.unsplash.com/photo-1590622728280-327c5b6b15fc?auto=format&fit=crop&w=400&q=80"],
+      cor: "#c59dff" 
+    }
   ]);
 
-  // Estados do Formulário de GCD
   const [showModal, setShowModal] = useState(false);
   const [draftLocation, setDraftLocation] = useState(null);
   const [novaCategoria, setNovaCategoria] = useState("Lixo");
   const [novaDescricao, setNovaDescricao] = useState("");
-  const [novaImagem, setNovaImagem] = useState(null);
-  const [imagemPreview, setImagemPreview] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const [erroSalvamento, setErroSalvamento] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("Todos");
+  const [mapCenter, setMapCenter] = useState([-23.005, -47.105]);
 
-  const countLixo = pontos.filter(p => p.categoria === "Lixo").length;
-  const countAsfalto = pontos.filter(p => p.categoria === "Asfalto").length;
-
-  // Ao clicar no mapa, salva a coordenada provisória e abre o formulário
   const handleMapClick = (latlng) => {
     setDraftLocation(latlng);
     setShowModal(true);
   };
 
-  // Salva o ponto definitivamente no mapa
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleSavePoint = () => {
+    if (!draftLocation || !novaDescricao.trim()) return;
 
-    setNovaImagem(file);
-    setImagemPreview(URL.createObjectURL(file));
-  };
+    const cores = {
+      "Lixo": "#f59e0b",
+      "Asfalto": "#64748b",
+      "Árvores": "#10b981",
+      "Esgoto a céu aberto": "#c59dff",
+      "Outros": "#3b82f6"
+    };
 
-  const handleCloseModal = () => {
+    const novoPonto = {
+      id: Date.now(),
+      lat: draftLocation.lat,
+      lng: draftLocation.lng,
+      categoria: novaCategoria,
+      desc: novaDescricao,
+      data: new Date().toLocaleDateString('pt-BR'),
+      status: "Pendente",
+      fotos: ["https://images.unsplash.com/photo-1584988717804-9a1b1a7cce67?auto=format&fit=crop&w=400&q=80"],
+      cor: cores[novaCategoria] || "#a2d4e2"
+    };
+
+    setPontos([...pontos, novoPonto]);
     setNovaDescricao("");
     setNovaCategoria("Lixo");
-    setNovaImagem(null);
-    setImagemPreview("");
-    setErroSalvamento("");
     setShowModal(false);
   };
 
-  const handleSavePoint = async () => {
-    if (!draftLocation || !novaDescricao.trim()) return;
-
-    setSalvando(true);
-    setErroSalvamento("");
-
-    // Define a cor baseada na categoria
-    const cores = {
-      "Lixo": "#ffc107",
-      "Asfalto": "#495057",
-      "Árvores": "#10b981",
-      "Esgoto a céu aberto": "#c59dff",
-      "Outros": "#a2d4e2"
-    };
-
-    try {
-      const formData = new FormData();
-      formData.append('lat', draftLocation.lat);
-      formData.append('lng', draftLocation.lng);
-      formData.append('categoria', novaCategoria);
-      formData.append('descricao', novaDescricao.trim());
-      if (novaImagem) formData.append('imagem', novaImagem);
-
-      const response = await fetch(`${API_URL}/evidencias`, {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Não foi possível salvar o registro.');
-
-      setPontos([...pontos, {
-        ...data,
-        data: new Date().toLocaleDateString('pt-BR'),
-        cor: cores[novaCategoria] || "#a2d4e2",
-        imagemUrl: data.imagem_url ? `${API_URL}${data.imagem_url}` : null,
-      }]);
-      handleCloseModal();
-    } catch (error) {
-      setErroSalvamento(error.message);
-    } finally {
-      setSalvando(false);
-    }
-  };
+  const pontosFiltrados = filtroCategoria === "Todos" 
+    ? pontos 
+    : pontos.filter(p => p.categoria === filtroCategoria);
 
   return (
-    <div className="vh-100 d-flex flex-column bg-light">
+    <div className="vh-100 d-flex flex-column bg-slate-50 overflow-hidden">
       
-      {/* HEADER */}
-      <Navbar className="shadow-sm px-4 py-3 z-3" style={{ background: 'linear-gradient(90deg, #c59dff 0%, #a2d4e2 100%)' }}>
+      {/* HEADER INSTITUCIONAL MODAL / CLEAN */}
+      <Navbar className="bg-white border-bottom px-4 py-3 shadow-xs flex-shrink-0 z-3">
         <Container fluid className="d-flex align-items-center justify-content-between">
-          <Navbar.Brand className="d-flex align-items-center fw-bold m-0 text-dark">
-            <img src="/logo.png" alt="Logo" style={{ height: '40px', marginRight: '15px' }} onError={(e) => e.target.style.display = 'none'} />
-            ASSALTAR AS NUVENS
-          </Navbar.Brand>
-          <div className="d-flex gap-2">
-            <Button variant="light" className="fw-semibold shadow-sm rounded-3 btn-sm px-3">
-              Guia de Mapeamento
+          <div className="d-flex align-items-center gap-3">
+            <div className="bg-dark rounded-2 p-1 d-flex align-items-center justify-content-center" style={{ width: '38px', height: '38px', background: 'linear-gradient(135deg, #c59dff 0%, #a2d4e2 100%)' }}>
+              <img src="/logo.png" alt="Logo" style={{ height: '24px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
+            </div>
+            <div>
+              <h1 className="h6 fw-bold mb-0 text-dark tracking-tight">ASSALTAR AS NUVENS</h1>
+              <small className="text-muted" style={{ fontSize: '11px' }}>Cartografia Climática // Campo Belo</small>
+            </div>
+          </div>
+
+          <div className="d-flex align-items-center gap-2">
+            <Button 
+              variant="outline-secondary" 
+              size="sm" 
+              className="rounded-pill px-3 fw-medium border-0 bg-light text-dark hover-bg-slate"
+              onClick={() => setMapCenter([-23.005, -47.105])}
+            >
+              📍 Centralizar
             </Button>
-            <Button variant="dark" className="fw-semibold shadow-sm rounded-3 btn-sm px-3 border-0" style={{ backgroundColor: '#2b2b2b' }} onClick={() => alert("Dica: Para adicionar, basta clicar em qualquer local do mapa!")}>
-              + Adicionar Ponto
+            <Button 
+              size="sm" 
+              className="rounded-pill px-3 fw-semibold text-white border-0 shadow-sm"
+              style={{ background: 'linear-gradient(90deg, #c59dff 0%, #90e0ef 100%)', color: '#1e293b !important' }}
+              onClick={() => alert("Dica: Clique em qualquer ponto do mapa para abrir o formulário de registro.")}
+            >
+              + Novo Registro
             </Button>
           </div>
         </Container>
       </Navbar>
 
+      {/* CORPO PRINCIPAL RESPONSIVO */}
       <Container fluid className="flex-grow-1 p-3 p-md-4 overflow-hidden">
-        <Row className="h-100 g-4">
+        <Row className="h-100 g-3">
           
-          {/* MAPA */}
-          <Col md={8} className="h-100">
-            <Card className="h-100 border-0 shadow-sm rounded-4 p-1 bg-white">
-              {/* Centro corrigido para o Campo Belo, Campinas */}
-              <MapContainer center={[-23.005, -47.105]} zoom={15} zoomControl={true} style={{ cursor: 'crosshair', height: '100%', borderRadius: '0.8rem' }}>
+          {/* MAPA PRINCIPAL */}
+          <Col lg={8} className="h-100 d-flex flex-column">
+            <Card className="flex-grow-1 border-0 shadow-sm rounded-4 p-1 bg-white overflow-hidden position-relative">
+              <MapContainer center={mapCenter} zoom={15} zoomControl={false} style={{ cursor: 'crosshair', height: '100%', width: '100%' }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                 <MapClickHandler onMapClick={handleMapClick} />
 
-                {pontos.map(p => (
+                {pontosFiltrados.map(p => (
                   <Marker key={p.id} position={[p.lat, p.lng]} icon={createCustomPin(p.cor)}>
-                    <Popup className="rounded-3 shadow-sm border-0 p-0" minWidth={220}>
+                    <Popup className="border-0 shadow-lg rounded-3" minWidth={240}>
                       <div className="p-2">
-                        <h6 className="fw-bold mb-2" style={{ color: p.cor }}>Categoria: {p.categoria}</h6>
-                        <p className="mb-1" style={{ fontSize: '13px', color: '#495057' }}><strong>Data:</strong> {p.data}</p>
-                        <p className="mb-0" style={{ fontSize: '13px', color: '#495057' }}><strong>Local:</strong> {p.desc}</p>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <Badge bg="dark" className="fw-normal" style={{ backgroundColor: p.cor }}>{p.categoria}</Badge>
+                          <small className="text-muted" style={{ fontSize: '10px' }}>{p.data}</small>
+                        </div>
+                        {p.fotos && p.fotos[0] && (
+                          <div className="mb-2 rounded-2 overflow-hidden shadow-xs" style={{ height: '110px' }}>
+                            <img src={p.fotos[0]} alt="Evidência" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        )}
+                        <p className="mb-1 text-secondary" style={{ fontSize: '12px', lineHeight: '1.4' }}>{p.desc}</p>
+                        <div className="mt-2 pt-2 border-top d-flex justify-content-between align-items-center">
+                          <span className="text-xs text-muted">Status: <strong className="text-dark">{p.status}</strong></span>
+                        </div>
                       </div>
                     </Popup>
                   </Marker>
@@ -167,66 +184,88 @@ function App() {
             </Card>
           </Col>
 
-          {/* PAINEL LATERAL */}
-          <Col md={4} className="h-100 d-flex flex-column">
-            <h5 className="fw-bold mb-3" style={{ color: '#495057' }}>Diagnóstico do Bairro</h5>
-            <Row className="g-3 mb-4">
+          {/* PAINEL LATERAL ANALÍTICO E FEED */}
+          <Col lg={4} className="h-100 d-flex flex-column overflow-auto">
+            
+            {/* FILTROS RÁPIDOS */}
+            <div className="mb-3 d-flex gap-1 overflow-auto pb-1 flex-shrink-0">
+              {['Todos', 'Lixo', 'Asfalto', 'Esgoto a céu aberto'].map(cat => (
+                <Button 
+                  key={cat}
+                  size="sm"
+                  variant={filtroCategoria === cat ? "dark" : "light"}
+                  className="rounded-pill text-xs px-3 border-0 shadow-xs"
+                  style={filtroCategoria === cat ? { backgroundColor: '#1e293b' } : {}}
+                  onClick={() => setFiltroCategoria(cat)}
+                >
+                  {cat}
+                </Button>
+              ))}
+            </div>
+
+            {/* MÉTRICAS RÁPIDAS */}
+            <Row className="g-2 mb-3 flex-shrink-0">
               <Col xs={6}>
-                <Card className="border-0 shadow-sm text-center py-3 rounded-4 bg-white">
+                <Card className="border-0 shadow-xs text-center py-2 rounded-3 bg-white">
                   <Card.Body className="p-2">
-                    <h2 className="fw-bold mb-0" style={{ color: '#c59dff', fontSize: '2.2rem' }}>{pontos.length}</h2>
-                    <small className="text-muted fw-semibold">Total de Registros</small>
+                    <h3 className="fw-bold mb-0 text-dark">{pontos.length}</h3>
+                    <small className="text-muted" style={{ fontSize: '11px' }}>Total Mapeado</small>
                   </Card.Body>
                 </Card>
               </Col>
               <Col xs={6}>
-                <Card className="border-0 shadow-sm text-center py-3 rounded-4 bg-white">
+                <Card className="border-0 shadow-xs text-center py-2 rounded-3 bg-white">
                   <Card.Body className="p-2">
-                    <h2 className="fw-bold mb-0 text-warning" style={{ fontSize: '2.2rem' }}>{countLixo}</h2>
-                    <small className="text-muted fw-semibold">Focos de Lixo</small>
+                    <h3 className="fw-bold mb-0 text-warning">{pontos.filter(p => p.status === 'Pendente').length}</h3>
+                    <small className="text-muted" style={{ fontSize: '11px' }}>Pendentes</small>
                   </Card.Body>
                 </Card>
               </Col>
             </Row>
 
-            <h6 className="fw-bold mb-3 text-muted text-uppercase" style={{ fontSize: '0.85rem' }}>Últimas Denúncias</h6>
-            <div className="flex-grow-1 overflow-auto pe-2">
-              {[...pontos].reverse().map(p => (
-                <Card key={p.id} className="border-0 shadow-sm mb-3 rounded-4 bg-white">
+            {/* LISTA DE REGISTROS (FEED) */}
+            <div className="flex-grow-1 overflow-auto pe-1 space-y-2">
+              <div className="text-xs text-uppercase fw-bold text-muted mb-2 px-1">Ocorrências Recentes no Território</div>
+              
+              {[...pontosFiltrados].reverse().map(p => (
+                <Card key={p.id} className="border-0 shadow-xs mb-2 rounded-3 bg-white hover-shadow transition-all cursor-pointer">
                   <Card.Body className="p-3">
-                    <div className="d-flex align-items-center mb-1">
-                      <span style={{ width: '14px', height: '14px', backgroundColor: p.cor, borderRadius: '50%', marginRight: '10px' }}></span>
-                      <strong style={{ color: '#333' }}>{p.categoria}</strong>
+                    <div className="d-flex align-items-center justify-content-between mb-1">
+                      <div className="d-flex align-items-center gap-2">
+                        <span style={{ width: '10px', height: '10px', backgroundColor: p.cor, borderRadius: '50%' }}></span>
+                        <strong className="text-dark fs-6">{p.categoria}</strong>
+                      </div>
+                      <Badge bg="light" text="dark" className="border text-xs fw-normal">{p.status}</Badge>
                     </div>
-                    <small className="text-muted ms-4 d-block lh-sm">{p.desc}</small>
-                    {p.imagemUrl && (
-                      <img src={p.imagemUrl} alt={`Evidência: ${p.categoria}`} className="evidence-thumbnail mt-3" />
-                    )}
+                    <p className="text-muted mb-0 mt-1" style={{ fontSize: '12px', lineHeight: '1.4' }}>{p.desc}</p>
                   </Card.Body>
                 </Card>
               ))}
             </div>
 
-            <Card className="border-0 shadow-sm mt-3 bg-white rounded-4">
-              <Card.Body className="p-3 text-muted" style={{ fontSize: '0.85rem' }}>
-                <p className="mb-1"><strong style={{ color: '#c59dff' }}>Projeto:</strong> Cartografia Climática Periférica</p>
-                <p className="mb-0"><strong style={{ color: '#c59dff' }}>Local:</strong> Campo Belo (Campinas-SP)</p>
-              </Card.Body>
-            </Card>
+            {/* RODAPÉ DO PAINEL */}
+            <div className="mt-3 pt-3 border-top text-muted flex-shrink-0" style={{ fontSize: '11px' }}>
+              <p className="mb-0"><strong>Kit de Soberania Local</strong> • Campo Belo, Campinas</p>
+            </div>
+
           </Col>
         </Row>
       </Container>
 
-      {/* MODAL DE ADIÇÃO DE PONTO (Formulário) */}
-      <Modal show={showModal} onHide={handleCloseModal} centered backdrop="static">
+      {/* MODAL DE REGISTRO ELEGANTE */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered backdrop="static">
         <Modal.Header closeButton className="border-0 pb-0">
-          <Modal.Title className="fw-bold fs-5 text-dark">Registrar Nova Evidência</Modal.Title>
+          <Modal.Title className="fw-bold fs-5 text-dark">Novo Registro Cidadão</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="pt-2">
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold text-muted small">Categoria do Problema</Form.Label>
-              <Form.Select value={novaCategoria} onChange={(e) => setNovaCategoria(e.target.value)} className="shadow-sm border-0 bg-light">
+              <Form.Label className="fw-semibold text-secondary small">Categoria da Ocorrência</Form.Label>
+              <Form.Select 
+                value={novaCategoria} 
+                onChange={(e) => setNovaCategoria(e.target.value)} 
+                className="shadow-none border bg-light rounded-3 py-2"
+              >
                 <option value="Lixo">Acúmulo de Lixo</option>
                 <option value="Asfalto">Ilha de Calor (Asfalto)</option>
                 <option value="Esgoto a céu aberto">Esgoto a céu aberto</option>
@@ -236,46 +275,42 @@ function App() {
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold text-muted small">Imagem da Evidência</Form.Label>
-              <Form.Control
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleImageChange}
-                className="shadow-sm border-0 bg-light"
-              />
-              <Form.Text className="text-muted">JPG, PNG ou WEBP, até 10 MB.</Form.Text>
-              {imagemPreview && (
-                <img src={imagemPreview} alt="Prévia da evidência" className="evidence-preview mt-2" />
-              )}
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold text-muted small">Descrição do Local</Form.Label>
+              <Form.Label className="fw-semibold text-secondary small">Descrição do Problema</Form.Label>
               <Form.Control 
                 as="textarea" 
                 rows={3} 
-                placeholder="Descreva o que está acontecendo..."
+                placeholder="Descreva o que foi observado no local..."
                 value={novaDescricao}
                 onChange={(e) => setNovaDescricao(e.target.value)}
-                className="shadow-sm border-0 bg-light"
+                className="shadow-none border bg-light rounded-3"
               />
             </Form.Group>
-            
-            {/* Aviso visual das coordenadas */}
-            {draftLocation && (
-              <div className="text-muted small mt-2 bg-light p-2 rounded border-0">
-                <code className="text-dark">Lat: {draftLocation.lat.toFixed(5)} <br/>Lng: {draftLocation.lng.toFixed(5)}</code>
-              </div>
-            )}
+
+            <Form.Group className="mb-2">
+              <Form.Label className="fw-semibold text-secondary small">Adicionar Evidência Fotográfica</Form.Label>
+              <Form.Control 
+                type="file" 
+                accept="image/*" 
+                capture="environment"
+                className="shadow-none border bg-light rounded-3 text-muted small"
+              />
+              <Form.Text className="text-muted" style={{ fontSize: '10px' }}>
+                Você pode tirar uma foto na hora com o celular ou carregar da galeria.
+              </Form.Text>
+            </Form.Group>
           </Form>
-          {erroSalvamento && <div className="alert alert-danger py-2 mb-0">{erroSalvamento}</div>}
         </Modal.Body>
-        <Modal.Footer className="border-0 pt-0">
-          <Button variant="light" onClick={handleCloseModal} className="fw-semibold">
+        <Modal.Footer className="border-0 pt-0 pb-3">
+          <Button variant="light" onClick={() => setShowModal(false)} className="rounded-pill px-4 fw-semibold text-muted">
             Cancelar
           </Button>
-          <Button variant="dark" onClick={handleSavePoint} disabled={!novaDescricao.trim() || salvando} className="fw-semibold" style={{ backgroundColor: '#2b2b2b' }}>
-            {salvando ? 'Salvando...' : 'Salvar Registro'}
+          <Button 
+            onClick={handleSavePoint} 
+            disabled={!novaDescricao.trim()} 
+            className="rounded-pill px-4 fw-semibold text-white border-0 shadow-sm"
+            style={{ backgroundColor: '#1e293b' }}
+          >
+            Enviar Registro
           </Button>
         </Modal.Footer>
       </Modal>
